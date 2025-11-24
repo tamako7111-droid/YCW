@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Valorant 点小球训练 (界面优化)</title>
+    <style>
+        /* ==================== CSS 样式 ==================== */
+        body {
+            margin: 0;
+            overflow: hidden; 
+            font-family: sans-serif;
+            color: white;
+            background-color: #1a1a1a;
+            user-select: none; 
+        }
+
+        #settings, #stats {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 10; 
+            text-align: center;
+        }
+
+        #stats {
+            top: 20px;
+            left: 20px;
+            transform: none;
+            text-align: left;
+            padding: 10px 20px;
+        }
+
+        #settings input, #settings button, #settings select {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: none;
+        }
+
+        #settings label {
+            display: block;
+            margin-top: 15px;
+        }
+        
+        /* 统一设置容器样式 */
+        #range-settings, #target-settings, #time-settings, #count-settings { 
+            border: 1px dashed #555;
+            padding: 10px;
+            margin-top: 10px; /* 减小间距 */
+            color: #ccc;
+        }
+
+        /* 进阶设置的开关按钮 */
+        #toggle-advanced-settings {
+            background-color: #3a3a3a;
+            color: #fff;
+            padding: 10px 15px;
+            border: 1px solid #555;
+            margin: 15px 0 0;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        #toggle-advanced-settings:hover {
+            background-color: #4a4a4a;
+        }
+
+        /* **** 核心折叠样式 **** */
+        #advanced-settings-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, border-top 0.3s;
+            border-top: 1px solid transparent; 
+        }
+        
+        #advanced-settings-container.expanded {
+            /* 设置一个足够大的高度来显示所有内容 */
+            max-height: 800px; 
+            border-top: 1px dashed #555;
+            padding-top: 15px;
+        }
+        
+        /* 调整第一个子元素的上边距，防止顶部留白过多 */
+        #advanced-settings-container > div:first-child {
+            margin-top: 0; 
+        }
+
+
+        #settings button[onclick="startGame()"] {
+            background-color: #ff4655; 
+            color: white;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+        }
+
+        #settings button[onclick="startGame()"]:hover {
+            background-color: #e53949;
+        }
+
+        #game-area {
+            width: 100vw;
+            height: 100vh;
+            background-color: #222;
+            cursor: none; 
+            position: relative; 
+        }
+
+        #range-border {
+            position: absolute;
+            border: 2px dashed #00bfff; 
+            pointer-events: none; 
+            box-sizing: border-box; 
+            z-index: 1; 
+        }
+
+        #crosshair {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border: 1px solid white;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%); 
+            pointer-events: none; 
+            z-index: 100;
+        }
+
+        .target {
+            position: absolute;
+            background-color: #ff4655; 
+            border-radius: 50%;
+            cursor: pointer; 
+            box-shadow: 0 0 10px rgba(255, 70, 85, 0.7);
+            transition: transform 0.1s;
+            z-index: 50; 
+        }
+        .target:hover {
+            transform: scale(1.05);
+            background-color: #e53949;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="settings">
+        <h2>Valorant 点小球训练</h2>
+        
+        <label for="sens">Valorant 灵敏度 (例如 0.4):</label>
+        <input type="number" id="sens" value="0.4" step="0.01">
+        
+        <label for="dpi">鼠标 DPI:</label>
+        <input type="number" id="dpi" value="800" step="100">
+
+        <button id="toggle-advanced-settings">⚙️ 进阶训练设置 (点击展开)</button>
+
+        <div id="advanced-settings-container">
+            
+            <div id="range-settings">
+                <h4>🎯 选择居中训练范围</h4>
+                <label for="range-select">训练区域大小:</label>
+                <select id="range-select">
+                    <option value="100">全屏 (100%)</option>
+                    <option value="80">大范围 (80% 居中)</option>
+                    <option value="60">中等范围 (60% 居中)</option>
+                    <option value="40" selected>小范围 (40% 居中)</option>
+                    <option value="20">微小范围 (20% 居中)</option>
+                </select>
+            </div>
+
+            <div id="target-settings">
+                <h4>🔴 小球尺寸 (像素)</h4>
+                <label for="size-select">目标大小:</label>
+                <select id="size-select">
+                    <option value="100">巨大 (100px)</option>
+                    <option value="60">大目标 (60px)</option>
+                    <option value="50" selected>标准 (50px)</option>
+                    <option value="30">小目标 (30px)</option>
+                    <option value="15">极小目标 (15px)</option>
+                </select>
+            </div>
+
+            <div id="count-settings">
+                <h4>🔢 小球数量</h4>
+                <select id="count-select">
+                    <option value="1" selected>1 个</option>
+                    <option value="2">2 个</option>
+                    <option value="3">3 个</option>
+                </select>
+            </div>
+
+            <div id="time-settings">
+                <h4>⏱️ 训练时长 (秒)</h4>
+                <select id="time-select">
+                    <option value="60" selected>60 秒 (标准)</option>
+                    <option value="30">30 秒</option>
+                    <option value="20">20 秒</option>
+                    <option value="10">10 秒</option>
+                </select>
+            </div>
+
+        </div>
+        <button onclick="startGame()">开始游戏</button>
+        <p style="font-size: 0.9em; margin-top: 10px;">请使用**鼠标左键**射击。按 **ESC** 键暂停/退出。</p>
+    </div>
+
+    <div id="stats" style="display:none;">
+        <h3>训练数据</h3>
+        <p>成功点击 (得分): <span id="score">0</span></p>
+        <p>总点击次数: <span id="totalClicksDisplay">0</span></p>
+        <p>点击准确率: <span id="accuracyDisplay">0.00%</span></p>
+        <p>剩余时间: <span id="time">60</span>s</p>
+        <p>灵敏度已锁定: <span id="currentSensDisplay"></span></p>
+    </div>
+
+    <div id="game-area" style="display:none;">
+        <div id="range-border"></div>
+        <div id="crosshair"></div>
+    </div>
+
+    <script>
+        /* ==================== JavaScript 逻辑 (新增界面优化逻辑) ==================== */
+
+        const VALORANT_SENSITIVITY_BASE = 1; 
+        let gameArea;
+        let crosshair;
+        let rangeBorder; 
+        let currentSens; 
+        
+        // 范围限制变量
+        let rangeXMin, rangeXMax, rangeYMin, rangeYMax;
+        let targetSize; 
+        let targetCount; 
+
+        // 游戏状态
+        let score = 0; 
+        let totalClicks = 0; 
+        let time = 60; 
+        let timerId;
+        let isGameRunning = false;
+        let crosshairX = 0;
+        let crosshairY = 0;
+
+        function startGame() {
+            if (isGameRunning) return;
+
+            const sensInput = document.getElementById('sens').value;
+            currentSens = parseFloat(sensInput);
+
+            if (isNaN(currentSens) || currentSens <= 0) {
+                alert("请输入有效的 Valorant 灵敏度！");
+                return;
+            }
+            
+            targetSize = parseFloat(document.getElementById('size-select').value);
+            targetCount = parseInt(document.getElementById('count-select').value);
+
+            const selectedSize = parseFloat(document.getElementById('range-select').value);
+            const padding = (100 - selectedSize) / 2; 
+
+            rangeXMin = padding;
+            rangeXMax = 100 - padding;
+            rangeYMin = padding;
+            rangeYMax = 100 - padding;
+
+            const selectedTime = parseInt(document.getElementById('time-select').value);
+
+            // UI 和状态初始化
+            document.getElementById('settings').style.display = 'none';
+            document.getElementById('stats').style.display = 'block';
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('currentSensDisplay').textContent = currentSens;
+            
+            gameArea = document.getElementById('game-area');
+            crosshair = document.getElementById('crosshair');
+            rangeBorder = document.getElementById('range-border'); 
+
+            score = 0;
+            totalClicks = 0; 
+            time = selectedTime; 
+            isGameRunning = true;
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('totalClicksDisplay').textContent = totalClicks;
+            document.getElementById('accuracyDisplay').textContent = '0.00%';
+            document.getElementById('time').textContent = time; 
+
+            crosshairX = gameArea.clientWidth / 2;
+            crosshairY = gameArea.clientHeight / 2;
+            updateCrosshairPosition(crosshairX, crosshairY);
+            
+            updateRangeBorder();
+
+            gameArea.addEventListener('mousedown', handleShoot, false); 
+            gameArea.requestPointerLock();
+            startTimer();
+            
+            for (let i = 0; i < targetCount; i++) {
+                generateSingleTarget(); 
+            }
+        }
+
+        // === 边框、鼠标、计时器和结束逻辑 (略) ===
+        
+        function updateRangeBorder() {
+            const areaWidth = gameArea.clientWidth;
+            const areaHeight = gameArea.clientHeight;
+
+            const borderLeft = areaWidth * (rangeXMin / 100);
+            const borderTop = areaHeight * (rangeYMin / 100);
+
+            const borderWidth = areaWidth * ((rangeXMax - rangeXMin) / 100);
+            const borderHeight = areaHeight * ((rangeYMax - rangeYMin) / 100);
+
+            rangeBorder.style.left = `${borderLeft}px`;
+            rangeBorder.style.top = `${borderTop}px`;
+            rangeBorder.style.width = `${borderWidth}px`;
+            rangeBorder.style.height = `${borderHeight}px`;
+        }
+
+        function handleMouseMove(event) {
+            if (!isGameRunning || document.pointerLockElement !== gameArea) return;
+
+            const movementX = event.movementX;
+            const movementY = event.movementY;
+            const sensFactor = currentSens * VALORANT_SENSITIVITY_BASE;
+            const dx = movementX * sensFactor;
+            const dy = movementY * sensFactor;
+
+            crosshairX = Math.max(0, Math.min(gameArea.clientWidth, crosshairX + dx));
+            crosshairY = Math.max(0, Math.min(gameArea.clientHeight, crosshairY + dy));
+
+            updateCrosshairPosition(crosshairX, crosshairY);
+        }
+
+        function updateCrosshairPosition(x, y) {
+            crosshair.style.left = `${x}px`;
+            crosshair.style.top = `${y}px`;
+        }
+
+        document.addEventListener('mousemove', handleMouseMove, false);
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement !== gameArea) {
+                if(isGameRunning) {
+                    alert("游戏暂停：鼠标已解锁。点击 '开始游戏' 按钮继续。");
+                    clearInterval(timerId);
+                    isGameRunning = false;
+                    gameArea.removeEventListener('mousedown', handleShoot, false); 
+                    document.getElementById('settings').style.display = 'block';
+                }
+            }
+        }, false);
+
+        function generateSingleTarget() {
+            if (!isGameRunning) return;
+
+            const size = targetSize; 
+            const areaWidth = gameArea.clientWidth;
+            const areaHeight = gameArea.clientHeight;
+
+            const minPxX = areaWidth * (rangeXMin / 100);
+            const maxPxX = areaWidth * (rangeXMax / 100);
+            const minPxY = areaHeight * (rangeYMin / 100);
+            const maxPxY = areaHeight * (rangeYMax / 100);
+            
+            const rangeWidth = maxPxX - minPxX - size;
+            const rangeHeight = maxPxY - minPxY - size;
+
+            let x, y;
+
+            if (rangeWidth < 0 || rangeHeight < 0) {
+                x = Math.floor(Math.random() * (areaWidth - size));
+                y = Math.floor(Math.random() * (areaHeight - size));
+            } else {
+                x = Math.floor(Math.random() * rangeWidth) + minPxX;
+                y = Math.floor(Math.random() * rangeHeight) + minPxY;
+            }
+            
+            const target = document.createElement('div');
+            target.className = 'target';
+            target.style.width = `${size}px`;      
+            target.style.height = `${size}px`;     
+            target.style.left = `${x}px`;
+            target.style.top = `${y}px`;
+            
+            gameArea.appendChild(target);
+            return target;
+        }
+
+        function handleShoot(event) {
+            if (!isGameRunning || event.button !== 0) return; 
+
+            totalClicks++; 
+
+            const clickedElement = document.elementFromPoint(crosshairX, crosshairY);
+
+            if (clickedElement && clickedElement.classList.contains('target')) {
+                score++;
+                clickedElement.remove(); 
+                generateSingleTarget(); 
+            }
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('totalClicksDisplay').textContent = totalClicks;
+            
+            const accuracy = totalClicks > 0 ? ((score / totalClicks) * 100).toFixed(2) : '0.00';
+            document.getElementById('accuracyDisplay').textContent = `${accuracy}%`;
+
+            event.stopPropagation();
+        }
+
+        function startTimer() {
+            clearInterval(timerId);
+            timerId = setInterval(() => {
+                time--;
+                document.getElementById('time').textContent = time;
+
+                if (time <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            clearInterval(timerId);
+            
+            document.exitPointerLock(); 
+            
+            gameArea.querySelectorAll('.target').forEach(t => t.remove());
+
+            const finalAccuracy = totalClicks > 0 ? ((score / totalClicks) * 100).toFixed(2) : '0.00';
+
+            alert(`训练结束！
+您的最终得分 (成功点击): ${score}
+总点击次数: ${totalClicks}
+点击准确率: ${finalAccuracy}%`);
+            
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('game-area').style.display = 'none';
+            document.getElementById('settings').style.display = 'block';
+            
+            gameArea.removeEventListener('mousedown', handleShoot, false); 
+        }
+
+        // **** 新增：DOM加载完成后的设置面板控制逻辑 ****
+        document.addEventListener('DOMContentLoaded', () => {
+            gameArea = document.getElementById('game-area');
+            gameArea.addEventListener('click', () => {
+                if (isGameRunning && document.pointerLockElement !== gameArea) {
+                    gameArea.requestPointerLock();
+                }
+            });
+            window.addEventListener('resize', () => {
+                if (isGameRunning) {
+                    updateRangeBorder();
+                    crosshairX = Math.min(gameArea.clientWidth, crosshairX);
+                    crosshairY = Math.min(gameArea.clientHeight, crosshairY);
+                    updateCrosshairPosition(crosshairX, crosshairY);
+                }
+            });
+
+            // 进阶设置面板逻辑
+            const toggleButton = document.getElementById('toggle-advanced-settings');
+            const container = document.getElementById('advanced-settings-container');
+
+            // 初始状态：收起
+            container.classList.remove('expanded');
+            toggleButton.textContent = '⚙️ 进阶训练设置 (点击展开)';
+
+            toggleButton.addEventListener('click', () => {
+                const isExpanded = container.classList.toggle('expanded');
+                
+                if (isExpanded) {
+                    toggleButton.textContent = '🛠️ 进阶训练设置 (点击收起)';
+                } else {
+                    toggleButton.textContent = '⚙️ 进阶训练设置 (点击展开)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
